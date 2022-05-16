@@ -40,6 +40,7 @@ require (
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 	github.com/shazow/ssh-chat v1.10.1
 	github.com/sirupsen/logrus v1.8.1
+	github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9
 	github.com/slack-go/slack v0.10.3
 	github.com/spf13/viper v1.11.0
 	github.com/stretchr/testify v1.7.1
@@ -115,7 +116,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/shazow/rateio v0.0.0-20200113175441-4461efc8bdc4 // indirect
 	github.com/sizeofint/webpanimation v0.0.0-20210809145948-1d2b32119882 // indirect
-	github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect

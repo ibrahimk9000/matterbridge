@@ -1,9 +1,11 @@
+//go:build whatsappmulti
 // +build whatsappmulti
 
 package bwhatsapp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime"
@@ -14,6 +16,7 @@ import (
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/mdp/qrterminal"
+	"github.com/skip2/go-qrcode"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/binary/proto"
@@ -27,7 +30,8 @@ import (
 
 const (
 	// Account config parameters
-	cfgNumber = "Number"
+	cfgNumber     = "Number"
+	qrImageOutput = "QrImageOutput"
 )
 
 // Bwhatsapp Bridge structure keeping all the information needed for relying
@@ -95,6 +99,10 @@ func (b *Bwhatsapp) Connect() error {
 		for evt := range qrChan {
 			if evt.Event == "code" {
 				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+				err := qrcode.WriteFile(evt.Code, qrcode.Medium, 256, filepath.Join(b.GetString(qrImageOutput), "qr.png"))
+				if err != nil {
+					b.Log.Infof("failed to create QR code image :  %s", err)
+				}
 			} else {
 				b.Log.Infof("QR channel result: %s", evt.Event)
 			}
@@ -191,13 +199,25 @@ func (b *Bwhatsapp) JoinChannel(channel config.ChannelInfo) error {
 			foundGroups = append(foundGroups, group.Name)
 		}
 	}
-
+	listGroupChannels := make(map[string]string)
 	switch len(foundGroups) {
 	case 0:
 		// didn't match any group - print out possibilites
 		for _, group := range groups {
 			b.Log.Infof("%s %s", group.JID, group.Name)
+			listGroupChannels[group.Name] = group.JID.String()
 		}
+		buf, err := json.Marshal(listGroupChannels)
+		if err != nil {
+			b.Log.Infof("failed to marshal channels list ")
+
+		}
+		err = os.WriteFile(filepath.Join(b.GetString(qrImageOutput), "list.json"), buf, 0666)
+		if err != nil {
+			b.Log.Infof("failed to channels list  file : %s", err)
+
+		}
+
 		return fmt.Errorf("please specify group's JID from the list above instead of the name '%s'", channel.Name)
 	case 1:
 		return fmt.Errorf("group name might change. Please configure gateway with channel=\"%v\" instead of channel=\"%v\"", foundGroups[0], channel.Name)
