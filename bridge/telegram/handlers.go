@@ -1,6 +1,7 @@
 package btelegram
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"path/filepath"
@@ -27,6 +28,16 @@ func (b *Btelegram) handleUpdate(rmsg *config.Message, message, posted, edited *
 			if err != nil {
 				b.Log.Warnf("Unable to send chatID to %s", chatID)
 			}
+		} else if strings.Contains(posted.Text, "/MTRegister ") {
+			chatID := strconv.FormatInt(posted.Chat.ID, 10)
+			jsonRmsg := rmsg
+			jsonRmsg.Text = strings.Replace(posted.Text, "/MTRegister ", "", 1)
+			jsonRmsg.Channel = chatID
+			jsonRmsg.Protocol = "telegram"
+			buf, _ := json.Marshal(jsonRmsg)
+			fmt.Println(string(buf))
+			message = posted
+			rmsg.Text = message.Text
 		} else {
 			message = posted
 			rmsg.Text = message.Text
@@ -236,6 +247,10 @@ func (b *Btelegram) handleRecv(updates <-chan tgbotapi.Update) {
 
 			b.Log.Debugf("<= Sending message from %s on %s to gateway", rmsg.Username, b.Account)
 			b.Log.Debugf("<= Message is %#v", rmsg)
+			if err != nil {
+				b.Log.Infof("failed to marshal telegram message event information ")
+			}
+
 			b.Remote <- rmsg
 		}
 	}
