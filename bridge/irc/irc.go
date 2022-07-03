@@ -359,7 +359,7 @@ func (b *Birc) skipPrivMsg(event girc.Event) bool {
 	}
 	// don't forward queries to the bot
 	if event.Params[0] == b.Nick {
-		return true
+		return false
 	}
 	// don't forward message from ourself
 	if event.Source != nil {

@@ -132,6 +132,9 @@ func (b *Birc) handleNewConnection(client *girc.Client, event girc.Event) {
 	i.Handlers.AddBg("KICK", b.handleJoinPart)
 	i.Handlers.Add("INVITE", b.handleInvite)
 	i.Handlers.Add(girc.ERR_CANNOTSENDTOCHAN, b.HandleCannotSendChannel)
+	i.Handlers.Add(girc.RPL_NAMREPLY, b.HandleStoreNames)
+	i.Handlers.Add(girc.RPL_ENDOFNAMES, b.HandleEndNames)
+	i.Handlers.Add(girc.RPL_ENDOFNAMES, b.HandleTopicChannel)
 }
 
 func (b *Birc) handleNickServ() {
@@ -185,7 +188,11 @@ func (b *Birc) handlePrivMsg(client *girc.Client, event girc.Event) {
 	if b.skipPrivMsg(event) {
 		return
 	}
-
+	// TODO add dm event here
+	if event.Params[0] == b.Nick {
+		b.handleDirectMsg(client, event)
+		return
+	}
 	rmsg := config.Message{
 		Username: event.Source.Name,
 		Channel:  strings.ToLower(event.Params[0]),
