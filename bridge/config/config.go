@@ -33,19 +33,21 @@ const (
 const ParentIDNotFound = "msg-parent-not-found"
 
 type Message struct {
-	Text      string    `json:"text"`
-	Channel   string    `json:"channel"`
-	Username  string    `json:"username"`
-	UserID    string    `json:"userid"` // userid on the bridge
-	Avatar    string    `json:"avatar"`
-	Account   string    `json:"account"`
-	Event     string    `json:"event"`
-	Protocol  string    `json:"protocol"`
-	Gateway   string    `json:"gateway"`
-	ParentID  string    `json:"parent_id"`
-	Timestamp time.Time `json:"timestamp"`
-	ID        string    `json:"id"`
-	Extra     map[string][]interface{}
+	Text               string    `json:"text"`
+	Channel            string    `json:"channel"`
+	Username           string    `json:"username"`
+	UserID             string    `json:"userid"` // userid on the bridge
+	Avatar             string    `json:"avatar"`
+	Account            string    `json:"account"`
+	Event              string    `json:"event"`
+	Protocol           string    `json:"protocol"`
+	Gateway            string    `json:"gateway"`
+	ParentID           string    `json:"parent_id"`
+	Timestamp          time.Time `json:"timestamp"`
+	ID                 string    `json:"id"`
+	Extra              map[string][]interface{}
+	ChannelUsersMember map[string][]string
+	OriginChannel string
 }
 
 func (m Message) ParentNotFound() bool {
@@ -176,6 +178,9 @@ type Protocol struct {
 	VerboseJoinPart        bool       // IRC
 	WebhookBindAddress     string     // mattermost, slack
 	WebhookURL             string     // mattermost, slack
+	HsToken                string     // appservice
+	StorePath              string     // appservice
+	MainUser               string     // appservice
 }
 
 type ChannelOptions struct {
@@ -231,6 +236,7 @@ type BridgeValues struct {
 	Zulip              map[string]Protocol
 	Keybase            map[string]Protocol
 	Mumble             map[string]Protocol
+	Appservice         map[string]Protocol
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway

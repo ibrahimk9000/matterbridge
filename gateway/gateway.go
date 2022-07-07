@@ -211,7 +211,26 @@ func (gw *Gateway) mapChannels() error {
 
 func (gw *Gateway) getDestChannel(msg *config.Message, dest bridge.Bridge) []config.ChannelInfo {
 	var channels []config.ChannelInfo
+	if msg.Protocol == "appservice" {
+		for _, channel := range gw.Channels {
+			ch := *channel
+			ch.Name = msg.Channel
+			ch.ID = msg.Channel + ch.Account
+			channels = append(channels, ch)
 
+		}
+		return channels
+	}
+	if dest.Protocol == "appservice" {
+		for _, channel := range gw.Channels {
+			ch := *channel
+			ch.Name = msg.Channel
+			ch.ID = msg.Channel + ch.Account
+			channels = append(channels, ch)
+
+		}
+		return channels
+	}
 	// for messages received from the api check that the gateway is the specified one
 	if msg.Protocol == apiProtocol && gw.Name != msg.Gateway {
 		return channels
