@@ -47,7 +47,7 @@ type Message struct {
 	ID                 string    `json:"id"`
 	Extra              map[string][]interface{}
 	ChannelUsersMember map[string][]string
-	OriginChannel string
+	OriginChannel      string
 }
 
 func (m Message) ParentNotFound() bool {
@@ -181,6 +181,7 @@ type Protocol struct {
 	HsToken                string     // appservice
 	StorePath              string     // appservice
 	MainUser               string     // appservice
+	Port                   string     // appservice
 }
 
 type ChannelOptions struct {
@@ -194,6 +195,8 @@ type Bridge struct {
 	Channel     string
 	Options     ChannelOptions
 	SameChannel bool
+
+	AppServiceLink bool // appservice ,others
 }
 
 type Gateway struct {

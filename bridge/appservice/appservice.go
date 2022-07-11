@@ -198,9 +198,37 @@ func (b *AppServMatrix) Connect() error {
 		return err
 	}
 	go func() {
-		log.Fatal(http.ListenAndServe(":1234", mx))
+		log.Fatal(http.ListenAndServe(":"+b.GetString("port"), mx))
 	}()
+	go b.InitControlRoom()
 	return nil
+}
+func (b *AppServMatrix) InitControlRoom() {
+	if _, ok := b.roomsInfo["appservice-control"]; ok {
+		return
+	}
+	time.Sleep(15 * time.Second)
+	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
+		Name:   "appservice-control",
+		Invite: []id.UserID{id.UserID(b.GetString("MainUser"))},
+
+		IsDirect: true,
+	})
+	if err != nil {
+		b.Log.Debug("error creating control room", err)
+		return
+	}
+
+	roomId := resp.RoomID
+	b.roomsInfo["appservice-control"] = MatrixRoomInfo{
+		RoomName: "appservice-control",
+		Alias:    roomId.String(),
+		Members:  nil,
+		IsDirect: true,
+	}
+	b.SaveState()
+	b.RoomMap[roomId.String()] = "appservice-control"
+
 }
 
 type AppEvents struct {
@@ -228,7 +256,7 @@ func (b *AppServMatrix) handleTransaction(w http.ResponseWriter, r *http.Request
 		return
 	}
 	for _, ev := range appsEvents.Events {
-		b.HandleAppServEvent(ev)
+		go b.HandleAppServEvent(ev)
 	}
 	// TODO
 	//b.handlematrix()
@@ -350,6 +378,10 @@ func (b *AppServMatrix) HandleNewUsers(channelUsers map[string][]string) error {
 
 	// create Channel if not exist (direct or not)
 	for channelName, members := range channelUsers {
+		for i := range members {
+			members[i] = strings.TrimPrefix(members[i], "@")
+
+		}
 		isDirect := false
 		if len(members) == 1 {
 			isDirect = true
@@ -360,12 +392,15 @@ func (b *AppServMatrix) HandleNewUsers(channelUsers map[string][]string) error {
 		if b.isChannelExist(channelName) {
 			newMembers = b.NewUsersInChannel(channelName, members)
 		}
+		var backUp []string
 		for i, v := range newMembers {
 			if userInfo, ok := b.GetVirtualUserInfo(v); ok {
-				newMembers = append(newMembers[:i], newMembers[i+1:]...)
 				oldMember[v] = userInfo
+			} else {
+				backUp = append(backUp, newMembers[i])
 			}
 		}
+		newMembers = backUp
 		if b.isChannelExist(channelName) {
 
 			membersId := b.CreateVirtualUsers(channelName, newMembers)
@@ -481,8 +516,9 @@ func (b *AppServMatrix) CreateVirtualUsers(channelName string, members []string)
 	membersId := make(map[string]MemberInfo, len(members))
 
 	for _, member := range members {
+		time.Sleep(1 * time.Second)
 		resp, _, err := b.apsCli.Register(&gomatrix.ReqRegister{
-			Username: "_irc_bridge_" + member + "5",
+			Username: "_irc_bridge_" + member,
 			Type:     "m.login.application_service",
 		})
 		if err != nil {
@@ -940,7 +976,19 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 				ev.Content["body"], ev.Content)
 			return
 		}
+		if rmsg.Channel == "appservice-control" {
 
+			if strings.HasPrefix(rmsg.Text, "/appservice") {
+				sl := strings.Split(rmsg.Text, " ")
+				if len(sl) == 3 {
+					if sl[1] == "join" {
+						rmsg.Text = ""
+						rmsg.Channel = sl[2]
+						rmsg.Event = sl[1]
+					}
+				}
+			}
+		}
 		// Do we have a /me action
 		if ev.Content["msgtype"].(string) == "m.emote" {
 			rmsg.Event = config.EventUserAction
