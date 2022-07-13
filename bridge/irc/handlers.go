@@ -107,6 +107,7 @@ func (b *Birc) handleJoinPart(client *girc.Client, event girc.Event) {
 		if b.GetBool("verbosejoinpart") {
 			b.Log.Debugf("<= Sending verbose JOIN_LEAVE event from %s to gateway", b.Account)
 			msg = config.Message{Username: "system", Text: event.Source.Name + " (" + event.Source.Ident + "@" + event.Source.Host + ") " + strings.ToLower(event.Command) + "s", Channel: channel, Account: b.Account, Event: config.EventJoinLeave}
+			msg.ChannelUsersMember = map[string][]string{msg.Channel: {event.Source.Name}}
 		} else {
 			b.Log.Debugf("<= Sending JOIN_LEAVE event from %s to gateway", b.Account)
 		}
@@ -134,7 +135,7 @@ func (b *Birc) handleNewConnection(client *girc.Client, event girc.Event) {
 	i.Handlers.Add(girc.ERR_CANNOTSENDTOCHAN, b.HandleCannotSendChannel)
 	i.Handlers.Add(girc.RPL_NAMREPLY, b.HandleStoreNames)
 	i.Handlers.Add(girc.RPL_ENDOFNAMES, b.HandleEndNames)
-	i.Handlers.Add(girc.RPL_ENDOFNAMES, b.HandleTopicChannel)
+	i.Handlers.Add(girc.RPL_TOPIC, b.HandleTopicChannel)
 }
 
 func (b *Birc) handleNickServ() {
@@ -194,10 +195,10 @@ func (b *Birc) handlePrivMsg(client *girc.Client, event girc.Event) {
 		return
 	}
 	rmsg := config.Message{
-		Username: event.Source.Name,
-		Channel:  strings.ToLower(event.Params[0]),
-		Account:  b.Account,
-		UserID:   event.Source.Ident + "@" + event.Source.Host,
+		Username:      event.Source.Name,
+		Channel:       strings.ToLower(event.Params[0]),
+		Account:       b.Account,
+		UserID:        event.Source.Ident + "@" + event.Source.Host,
 		OriginChannel: strings.ToLower(event.Params[0]),
 	}
 

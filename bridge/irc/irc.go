@@ -232,6 +232,7 @@ func (b *Birc) doSend() {
 			b.Log.Debug(b.JoinChannel(config.ChannelInfo{
 				Name: msg.Channel,
 			}))
+			continue
 		}
 
 		// Optional support for the proposed RELAYMSG extension, described at

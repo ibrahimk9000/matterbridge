@@ -31,7 +31,7 @@ func TestAppServMatrix_Connect(t *testing.T) {
 		UserID:      "",
 		NicknameMap: map[string]NicknameCacheEntry{},
 		RoomMap:     map[string]string{},
-		roomsInfo:   map[string]MatrixRoomInfo{},
+		roomsInfo:   map[string]*MatrixRoomInfo{},
 		rateMutex:   sync.RWMutex{},
 		RWMutex:     sync.RWMutex{},
 		Config:      &bridge.Config{},

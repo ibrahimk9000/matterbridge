@@ -20,6 +20,12 @@ func (b *Birc) HandleStoreNames(client *girc.Client, event girc.Event) {
 	b.names[channel] = append(
 		b.names[channel],
 		strings.Split(strings.TrimSpace(event.Last()), " ")...)
+	for i := range b.names[channel] {
+		if b.names[channel][i] == event.Params[0] {
+			b.names[channel] = append(b.names[channel][:i], b.names[channel][i+1:]...)
+			break
+		}
+	}
 }
 func (b *Birc) HandleTopicChannel(client *girc.Client, event girc.Event) {
 
@@ -52,9 +58,6 @@ func (b *Birc) HandleEndNames(client *girc.Client, event girc.Event) {
 		ChannelUsersMember: b.names,
 		Event:              "new_users",
 	}
-	//b.names[channel] = nil
-	b.i.Handlers.Clear(girc.RPL_NAMREPLY)
-	b.i.Handlers.Clear(girc.RPL_ENDOFNAMES)
 }
 func (b *Birc) handleDirectMsg(client *girc.Client, event girc.Event) {
 	if b.skipPrivMsg(event) {

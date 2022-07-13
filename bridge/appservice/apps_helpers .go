@@ -229,3 +229,39 @@ func RandStringLowerRunes(n int) string {
 	}
 	return string(b)
 }
+func (b *AppServMatrix) TranslateToMatrixMention(platform, text string) string {
+	switch platform {
+	case "irc":
+		var htmlText string
+		if sl := strings.Split(text, ":"); len(sl) > 1 {
+			username := sl[0]
+			if username == b.remoteUsername {
+				htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", b.GetString("MainUser"), username+":")
+				return strings.ReplaceAll(text, username, htmlText)
+			} else {
+				if userInfo, ok := b.GetVirtualUserInfo(username); ok {
+					htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.Id, username+":")
+					return strings.ReplaceAll(text, username, htmlText)
+
+				}
+			}
+
+		}
+	case "appservice":
+		if sl := strings.Split(text, ":"); len(sl) > 1 {
+			OriginUsername := sl[0]
+			username := strings.Split(OriginUsername, ":")[0]
+			//username = username[:len(username)-1]
+			username = strings.ReplaceAll(username, "_irc_bridge_", "")
+			if username == strings.Split(b.GetString("MainUser"), ":")[0] {
+				return strings.ReplaceAll(text, OriginUsername, username)
+			}
+			if _, ok := b.GetVirtualUserInfo(username); ok {
+				return strings.ReplaceAll(text, OriginUsername, username)
+			}
+
+		}
+	}
+
+	return text
+}
