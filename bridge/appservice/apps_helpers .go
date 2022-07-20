@@ -251,8 +251,8 @@ func (b *AppServMatrix) TranslateToMatrixMention(platform, text string) string {
 		if sl := strings.Split(text, ":"); len(sl) > 1 {
 			OriginUsername := sl[0]
 			username := strings.Split(OriginUsername, ":")[0]
-			//username = username[:len(username)-1]
-			username = strings.ReplaceAll(username, "_irc_bridge_", "")
+			username = username[:len(username)-len(b.GetString("UserSuffix"))]
+			username = strings.ReplaceAll(username, b.GetString("ApsPrefix"), "")
 			if username == strings.Split(b.GetString("MainUser"), ":")[0] {
 				return strings.ReplaceAll(text, OriginUsername, username)
 			}

@@ -213,6 +213,9 @@ func (gw *Gateway) getDestChannel(msg *config.Message, dest bridge.Bridge) []con
 	var channels []config.ChannelInfo
 	if msg.Protocol == "appservice" {
 		for _, channel := range gw.Channels {
+			if channel.Account != dest.Account {
+				continue
+			}
 			ch := *channel
 			ch.Name = msg.Channel
 			ch.ID = msg.Channel + ch.Account
@@ -223,6 +226,9 @@ func (gw *Gateway) getDestChannel(msg *config.Message, dest bridge.Bridge) []con
 	}
 	if dest.Protocol == "appservice" {
 		for _, channel := range gw.Channels {
+			if channel.Account != dest.Account {
+				continue
+			}
 			ch := *channel
 			ch.Name = msg.Channel
 			ch.ID = msg.Channel + ch.Account

@@ -43,21 +43,17 @@ func (b *Birc) HandleTopicChannel(client *girc.Client, event girc.Event) {
 }
 func (b *Birc) HandleEndNames(client *girc.Client, event girc.Event) {
 	channel := event.Params[1]
+	members := make([]string, len(b.names[channel]))
+
 	sort.Strings(b.names[channel])
-	maxNamesPerPost := (300 / b.nicksPerRow()) * b.nicksPerRow()
-	for len(b.names[channel]) > maxNamesPerPost {
-		b.Remote <- config.Message{
-			Username: b.Nick, Text: b.formatnicks(b.names[channel][0:maxNamesPerPost]),
-			Channel: channel, Account: b.Account,
-		}
-		b.names[channel] = b.names[channel][maxNamesPerPost:]
-	}
+	copy(members, b.names[channel])
 	b.Remote <- config.Message{
 		Username: b.Nick, Text: b.formatnicks(b.names[channel]),
 		Channel: channel, Account: b.Account,
-		ChannelUsersMember: b.names,
+		ChannelUsersMember: members,
 		Event:              "new_users",
 	}
+	delete(b.names, channel)
 }
 func (b *Birc) handleDirectMsg(client *girc.Client, event girc.Event) {
 	if b.skipPrivMsg(event) {
@@ -69,8 +65,8 @@ func (b *Birc) handleDirectMsg(client *girc.Client, event girc.Event) {
 		Channel:            strings.ToLower(event.Params[0]),
 		Account:            b.Account,
 		UserID:             event.Source.Ident + "@" + event.Source.Host,
-		ChannelUsersMember: map[string][]string{strings.ToLower(event.Params[0]): {event.Source.Name}},
-		OriginChannel:      strings.ToLower(event.Params[0]),
+		ChannelUsersMember: []string{event.Source.Name},
+		//OriginChannel:      strings.ToLower(event.Params[0]),
 	}
 
 	b.Log.Debugf("== Receiving PRIVMSG: %s %s %#v", event.Source.Name, event.Last(), event)

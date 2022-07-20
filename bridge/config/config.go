@@ -46,8 +46,8 @@ type Message struct {
 	Timestamp          time.Time `json:"timestamp"`
 	ID                 string    `json:"id"`
 	Extra              map[string][]interface{}
-	ChannelUsersMember map[string][]string
-	OriginChannel      string
+	ChannelUsersMember []string
+	ActionCommand      string
 }
 
 func (m Message) ParentNotFound() bool {
@@ -182,6 +182,8 @@ type Protocol struct {
 	StorePath              string     // appservice
 	MainUser               string     // appservice
 	Port                   string     // appservice
+	AppServiceLink         bool       // appservice ,others
+	UserSuffix             string     // appservice
 }
 
 type ChannelOptions struct {
@@ -195,8 +197,6 @@ type Bridge struct {
 	Channel     string
 	Options     ChannelOptions
 	SameChannel bool
-
-	AppServiceLink bool // appservice ,others
 }
 
 type Gateway struct {

@@ -107,7 +107,8 @@ func (b *Birc) handleJoinPart(client *girc.Client, event girc.Event) {
 		if b.GetBool("verbosejoinpart") {
 			b.Log.Debugf("<= Sending verbose JOIN_LEAVE event from %s to gateway", b.Account)
 			msg = config.Message{Username: "system", Text: event.Source.Name + " (" + event.Source.Ident + "@" + event.Source.Host + ") " + strings.ToLower(event.Command) + "s", Channel: channel, Account: b.Account, Event: config.EventJoinLeave}
-			msg.ChannelUsersMember = map[string][]string{msg.Channel: {event.Source.Name}}
+			msg.ActionCommand = strings.ToLower(event.Command)
+			msg.ChannelUsersMember = []string{event.Source.Name}
 		} else {
 			b.Log.Debugf("<= Sending JOIN_LEAVE event from %s to gateway", b.Account)
 		}
@@ -195,11 +196,11 @@ func (b *Birc) handlePrivMsg(client *girc.Client, event girc.Event) {
 		return
 	}
 	rmsg := config.Message{
-		Username:      event.Source.Name,
-		Channel:       strings.ToLower(event.Params[0]),
-		Account:       b.Account,
-		UserID:        event.Source.Ident + "@" + event.Source.Host,
-		OriginChannel: strings.ToLower(event.Params[0]),
+		Username: event.Source.Name,
+		Channel:  strings.ToLower(event.Params[0]),
+		Account:  b.Account,
+		UserID:   event.Source.Ident + "@" + event.Source.Host,
+		//OriginChannel: strings.ToLower(event.Params[0]),
 	}
 
 	b.Log.Debugf("== Receiving PRIVMSG: %s %s %#v", event.Source.Name, event.Last(), event)

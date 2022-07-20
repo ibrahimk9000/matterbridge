@@ -38,9 +38,7 @@ func TestAppServMatrix_Connect(t *testing.T) {
 	}
 	b.Connect()
 
-	channelMember := map[string][]string{
-		"#neo": {"kof", "meta", "woi"},
-	}
+	channelMember := []string{"kof", "meta", "woi"}
 
 	msg := config.Message{
 		Text:               "hi good morning",
