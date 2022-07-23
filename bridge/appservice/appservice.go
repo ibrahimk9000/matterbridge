@@ -100,6 +100,7 @@ type AppServMatrix struct {
 	roomsInfo      map[string]*MatrixRoomInfo
 	remoteUsername string
 	virtualUsers   map[string]MemberInfo
+	RemoteProtocol string
 	rateMutex      sync.RWMutex
 	sync.RWMutex
 	*bridge.Config
@@ -109,6 +110,7 @@ type MatrixRoomInfo struct {
 	Alias    string   `json:"alias,omitempty"`
 	Members  []string `json:"members,omitempty"`
 	IsDirect bool     `json:"is_direct,omitempty"`
+	RemoteId string   `json:"remote_id,omitempty"`
 }
 type MemberInfo struct {
 	Token string
@@ -216,7 +218,6 @@ func (b *AppServMatrix) Connect() error {
 	var err error
 	//	b.apsCli, err = gomatrix.NewClient("http://localhost:8008", id.UserID("@_irc_bot:localhost"), "30c05ae90a248a4188e620216fa72e349803310ec83e2a77b34fe90be6081f46")
 	b.apsCli, err = gomatrix.NewClient(b.GetString("Server"), id.UserID(b.GetString("MxID")), b.GetString("Token"))
-	log.Println("appservice acess token", b.apsCli.AccessToken)
 	if err != nil {
 		return err
 	}
@@ -227,12 +228,13 @@ func (b *AppServMatrix) Connect() error {
 	return nil
 }
 func (b *AppServMatrix) InitControlRoom() {
-	if _, ok := b.roomsInfo["appservice-control"]; ok {
+	controlRoom := b.GetString("ApsPrefix") + "appservice_control"
+	if _, ok := b.roomsInfo[controlRoom]; ok {
 		return
 	}
 	time.Sleep(15 * time.Second)
 	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
-		Name:   "appservice-control",
+		Name:   controlRoom,
 		Invite: []id.UserID{id.UserID(b.GetString("MainUser"))},
 
 		IsDirect: true,
@@ -243,14 +245,15 @@ func (b *AppServMatrix) InitControlRoom() {
 	}
 
 	roomId := resp.RoomID
-	b.roomsInfo["appservice-control"] = &MatrixRoomInfo{
-		RoomName: "appservice-control",
+	b.roomsInfo[controlRoom] = &MatrixRoomInfo{
+		RoomName: controlRoom,
 		Alias:    roomId.String(),
 		Members:  nil,
 		IsDirect: true,
+		RemoteId: controlRoom,
 	}
 	b.SaveState()
-	b.RoomMap[roomId.String()] = "appservice-control"
+	b.RoomMap[roomId.String()] = controlRoom
 
 }
 
@@ -477,12 +480,14 @@ func (b *AppServMatrix) ChannelsLeavedUsersState(channel string, externMembers [
 	}
 }
 */
-func (b *AppServMatrix) AddNewChannel(channel, roomId string, isDirect bool) {
+func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) {
 
 	b.roomsInfo[channel] = &MatrixRoomInfo{
 		RoomName: channel,
 		Alias:    roomId,
+		Members:  []string{},
 		IsDirect: isDirect,
+		RemoteId: remoteId,
 	}
 }
 func (b *AppServMatrix) HandleChannelInfoEvent(channelName string, members []string) {
@@ -529,7 +534,7 @@ func (b *AppServMatrix) HandleChannelInfoEvent(channelName string, members []str
 			log.Println(fmt.Errorf("failed to create room %s : %w", channelName, err))
 		}
 		b.InviteToRoom(roomId, []string{b.GetString("MainUser")})
-		b.AddNewChannel(channelName, roomId, false)
+		b.AddNewChannel(channelName, roomId, channelName, false)
 
 		b.RoomMap[roomId] = channelName
 	} else {
@@ -541,7 +546,7 @@ func (b *AppServMatrix) HandleChannelInfoEvent(channelName string, members []str
 
 }
 
-func (b *AppServMatrix) HandleDirectMessages(username string) {
+func (b *AppServMatrix) HandleDirectMessages(username, channelId string) {
 	if b.isChannelExist(username) {
 		return
 	}
@@ -581,36 +586,40 @@ func (b *AppServMatrix) HandleDirectMessages(username string) {
 		log.Println(fmt.Errorf("failed to  create direct room : %w", err))
 		return
 	}
-	b.AddNewChannel(username, resp.RoomID, true)
+	b.AddNewChannel(username, resp.RoomID, channelId, true)
 	b.addNewMember(username, username)
 
 	b.RoomMap[resp.RoomID] = username
 	b.SaveState()
 }
-func (b *AppServMatrix) HandleJoinUser(channel, username string) {
-	if username == b.remoteUsername {
-		return
-	}
-	memberInfo, ok := b.GetVirtualUserInfo(username)
-	if !ok {
-		memberId, err := b.CreateVirtualUsers(username)
-		if err != nil {
-			log.Println(err)
+func (b *AppServMatrix) HandleJoinUsers(channel string, users []string) {
+	for _, v := range users {
+		if v == b.remoteUsername {
 			return
 		}
-		b.addVirtualUser(username, memberId)
-		if memberInfo, ok = b.GetVirtualUserInfo(username); !ok {
-			return
+		memberInfo, ok := b.GetVirtualUserInfo(v)
+		if !ok {
+			memberId, err := b.CreateVirtualUsers(v)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			b.addVirtualUser(v, memberId)
+			if memberInfo, ok = b.GetVirtualUserInfo(v); !ok {
+				return
+			}
 		}
+		roomId := b.getRoomID(channel)
+		b.InviteUserToRoom(roomId, memberInfo.Id)
+		b.addNewMember(channel, v)
 	}
-	roomId := b.getRoomID(channel)
-	b.InviteUserToRoom(roomId, memberInfo.Id)
-	b.addNewMember(channel, username)
 	b.SaveState()
 
 }
-func (b *AppServMatrix) HandleLeaveUser(channel, username string) {
-	b.RemoveUsersFromChannel(channel, []string{username})
+func (b *AppServMatrix) HandleLeaveUsers(channel string, users []string) {
+
+	b.RemoveUsersFromChannel(channel, users)
+
 	b.SaveState()
 
 }
@@ -900,6 +909,13 @@ func (b *AppServMatrix) NewVirtualUserMtxClient(username string) (*matrix.Client
 	return nil, fmt.Errorf("username not exist on the appservice database")
 }
 
+func (b *AppServMatrix) HandleDirectMsgCreateInfo(channel, remoteId string) {
+	if _, ok := b.roomsInfo[channel]; ok {
+		b.roomsInfo[channel].RemoteId = remoteId
+	}
+	b.SaveState()
+}
+
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	b.Log.Debugf("=> Receiving %#v", msg)
@@ -911,13 +927,14 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	//TODO handle virtualUser creation here
 	if msg.Event == "new_users" {
 		b.remoteUsername = msg.Username
+		b.RemoteProtocol = msg.Protocol
 		b.HandleChannelInfoEvent(msg.Channel, msg.ChannelUsersMember)
 		// TODO create virtual users and join channels
 		return "", nil
 	}
 	if msg.Event == "direct_msg" {
 
-		b.HandleDirectMessages(msg.Username)
+		b.HandleDirectMessages(msg.Username, msg.ChannelId)
 
 		channel = b.getRoomID(msg.Username)
 
@@ -926,10 +943,10 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	if msg.Event == config.EventJoinLeave {
 		if msg.ActionCommand == "join" {
-			b.HandleJoinUser(msg.Channel, msg.ChannelUsersMember[0])
+			b.HandleJoinUsers(msg.Channel, msg.ChannelUsersMember)
 
 		} else {
-			b.HandleLeaveUser(msg.Channel, msg.ChannelUsersMember[0])
+			b.HandleLeaveUsers(msg.Channel, msg.ChannelUsersMember)
 		}
 		return "", nil
 		// TODO create virtual users and join channels
@@ -944,7 +961,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		}
 	}
 
-	formattedText := b.TranslateToMatrixMention(msg.Protocol, msg.Text)
+	formattedText := b.IncomingMention(msg.Protocol, msg.Text)
 
 	if msg.Event == config.EventUserAction {
 		m := matrix.TextMessage{
@@ -1278,7 +1295,11 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 			Protocol: "appservice",
 			//	Avatar:   b.getAvatarURL(ev.Sender),
 		}
-
+		channelInfo := b.roomsInfo[channel]
+		if channelInfo.IsDirect && channelInfo.RemoteId == "" {
+			rmsg.Event = "direct_msg"
+		}
+		rmsg.ChannelId = channelInfo.RemoteId
 		// Remove homeserver suffix if configured
 		if b.GetBool("NoHomeServerSuffix") {
 			re := regexp.MustCompile("(.*?):.*")
@@ -1300,9 +1321,9 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 				ev.Content["body"], ev.Content)
 			return
 		}
-		rmsg.Text = b.TranslateToMatrixMention(rmsg.Protocol, rmsg.Text)
+		rmsg.Text = b.OutcomingMention(b.RemoteProtocol, rmsg.Text)
 
-		if rmsg.Channel == "appservice-control" {
+		if rmsg.Channel == b.GetString("ApsPrefix")+"appservice_control" {
 
 			if strings.HasPrefix(rmsg.Text, "/appservice") {
 				sl := strings.Split(rmsg.Text, " ")

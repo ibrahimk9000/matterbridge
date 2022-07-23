@@ -48,6 +48,7 @@ type Message struct {
 	Extra              map[string][]interface{}
 	ChannelUsersMember []string
 	ActionCommand      string
+	ChannelId          string
 }
 
 func (m Message) ParentNotFound() bool {

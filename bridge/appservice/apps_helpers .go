@@ -247,6 +247,7 @@ func (b *AppServMatrix) TranslateToMatrixMention(platform, text string) string {
 			}
 
 		}
+
 	case "appservice":
 		if sl := strings.Split(text, ":"); len(sl) > 1 {
 			OriginUsername := sl[0]
@@ -261,7 +262,101 @@ func (b *AppServMatrix) TranslateToMatrixMention(platform, text string) string {
 			}
 
 		}
+	case "discord":
+
 	}
 
 	return text
+}
+
+func (b *AppServMatrix) IncomingMention(protocol string, text string) string {
+
+	switch protocol {
+	case "irc":
+		if strings.Contains(text, "@") {
+			for k, v := range b.virtualUsers {
+
+				if strings.Contains(text, k+":") {
+
+					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", v.Id, k)
+					text = strings.ReplaceAll(text, k+":", htmlText)
+
+				}
+				if strings.Contains(text, b.remoteUsername+":") {
+					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", b.GetString("MainUser"), b.remoteUsername)
+
+					text = strings.ReplaceAll(text, b.remoteUsername+":", htmlText)
+
+				}
+			}
+		}
+	case "discord":
+		if strings.Contains(text, "@") {
+
+			for k, v := range b.virtualUsers {
+				if strings.Contains(text, "@"+k) {
+					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", v.Id, k)
+					text = strings.ReplaceAll(text, "@"+k, htmlText)
+
+				}
+			}
+			if strings.Contains(text, "@"+b.remoteUsername) {
+				htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", b.GetString("MainUser"), b.remoteUsername)
+
+				text = strings.ReplaceAll(text, "@"+b.remoteUsername, htmlText)
+
+			}
+		}
+
+	}
+
+	return text
+}
+func (b *AppServMatrix) OutcomingMention(protocol string, text string) string {
+	prefix := b.GetString("ApsPrefix")
+
+	for k, v := range b.virtualUsers {
+		if !strings.Contains(text, prefix) {
+			break
+		}
+		OriginUsername := strings.Split(v.Id, ":")[0][1:]
+
+		if strings.Contains(text, OriginUsername) {
+			text = strings.ReplaceAll(text, OriginUsername, b.ExternMention(protocol, k))
+
+		}
+	}
+
+	mainUser := strings.TrimSuffix(strings.Split(b.GetString("MainUser"), ":")[0], "@")
+	if strings.Contains(text, mainUser) {
+		text = strings.ReplaceAll(text, mainUser, b.ExternMention(protocol, mainUser))
+
+	}
+	return text
+}
+func (b *AppServMatrix) ExternMention(protocol, username string) string {
+	switch protocol {
+	case "irc":
+		return username
+	case "discord":
+		{
+			return "@" + username + " "
+		}
+	}
+	return username
+}
+func (b *AppServMatrix) GenerateMatrixHtmlMention(username, text string) string {
+	var htmlText string
+	if username == b.remoteUsername {
+		htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", b.GetString("MainUser"), username)
+		return strings.ReplaceAll(text, username, htmlText)
+	} else {
+		if userInfo, ok := b.GetVirtualUserInfo(username); ok {
+			htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.Id, username)
+			return strings.ReplaceAll(text, username, htmlText)
+
+		}
+	}
+	return text
+
 }

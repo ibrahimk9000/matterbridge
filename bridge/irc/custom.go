@@ -56,7 +56,9 @@ func (b *Birc) HandleEndNames(client *girc.Client, event girc.Event) {
 	delete(b.names, channel)
 }
 func (b *Birc) handleDirectMsg(client *girc.Client, event girc.Event) {
-	if b.skipPrivMsg(event) {
+
+	if b.skipPrivMsg(event) && !(event.Params[0] == b.Nick) {
+
 		return
 	}
 

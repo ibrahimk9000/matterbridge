@@ -234,6 +234,24 @@ func (b *Birc) doSend() {
 			}))
 			continue
 		}
+		if msg.Event == "direct_msg_create" {
+			rmsg:= config.Message{
+				Text:               "direct_msg_create",
+				Channel:            msg.Channel,
+				Username:           username,
+				Account:            b.Account,
+				Event:              "direct_msg_create",
+				Protocol:           "irc",
+				Gateway:            msg.Gateway,
+				ChannelId:          msg.Channel,
+			}
+			 
+			rmsg.Account = b.Account
+			rmsg.ChannelId = rmsg.Channel
+			rmsg.Text = rmsg.ChannelId
+			b.Remote <- rmsg
+
+		}
 
 		// Optional support for the proposed RELAYMSG extension, described at
 		// https://github.com/jlu5/ircv3-specifications/blob/master/extensions/relaymsg.md
@@ -367,7 +385,7 @@ func (b *Birc) skipPrivMsg(event girc.Event) bool {
 	}
 	// don't forward queries to the bot
 	if event.Params[0] == b.Nick {
-		return false
+		return true
 	}
 	// don't forward message from ourself
 	if event.Source != nil {
