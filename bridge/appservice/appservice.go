@@ -102,6 +102,7 @@ type AppServMatrix struct {
 	virtualUsers   map[string]MemberInfo
 	RemoteProtocol string
 	rateMutex      sync.RWMutex
+	RemoteNetwork  string
 	sync.RWMutex
 	*bridge.Config
 }
@@ -118,14 +119,16 @@ type MemberInfo struct {
 }
 
 type appserviceData struct {
-	RoomsInfo    map[string]*MatrixRoomInfo `json:"rooms_info,omitempty"`
-	VirtualUsers map[string]MemberInfo      `json:"virtual_users,omitempty"`
+	RoomsInfo      map[string]*MatrixRoomInfo `json:"rooms_info,omitempty"`
+	VirtualUsers   map[string]MemberInfo      `json:"virtual_users,omitempty"`
+	RemoteProtocol string                     `json:"remote_protocol,omitempty"`
 }
 
 func (b *AppServMatrix) SaveState() {
 	data := appserviceData{
-		RoomsInfo:    b.roomsInfo,
-		VirtualUsers: b.virtualUsers,
+		RoomsInfo:      b.roomsInfo,
+		VirtualUsers:   b.virtualUsers,
+		RemoteProtocol: b.RemoteProtocol,
 	}
 	br, err := json.Marshal(data)
 	if err != nil {
@@ -412,8 +415,10 @@ func (b *AppServMatrix) JoinChannel(channel config.ChannelInfo) error {
 				UserID:   "appservice",
 				Event:    "join",
 				Text:     "hi",
+
 				//	Avatar:   b.getAvatarURL(ev.Sender),
 			}
+			rmsg.TargetPlatform = b.RemoteProtocol
 
 			b.Log.Debugf("<= Sending message from %s on %s to gateway", "appservice", b.Account)
 			b.Remote <- rmsg
@@ -490,7 +495,7 @@ func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect
 		RemoteId: remoteId,
 	}
 }
-func (b *AppServMatrix) HandleChannelInfoEvent(channelName string, members []string) {
+func (b *AppServMatrix) HandleChannelInfoEvent(channelName, channelId string, members []string) {
 	var usersListState []userListState
 
 	for i := range members {
@@ -534,7 +539,7 @@ func (b *AppServMatrix) HandleChannelInfoEvent(channelName string, members []str
 			log.Println(fmt.Errorf("failed to create room %s : %w", channelName, err))
 		}
 		b.InviteToRoom(roomId, []string{b.GetString("MainUser")})
-		b.AddNewChannel(channelName, roomId, channelName, false)
+		b.AddNewChannel(channelName, roomId, channelId, false)
 
 		b.RoomMap[roomId] = channelName
 	} else {
@@ -919,16 +924,32 @@ func (b *AppServMatrix) HandleDirectMsgCreateInfo(channel, remoteId string) {
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	b.Log.Debugf("=> Receiving %#v", msg)
+	switch msg.Protocol {
+	case "telegram":
+		b.RemoteProtocol = msg.Protocol
+		msg.ChannelUsersMember = []string{msg.Username}
+		msg.Channel = msg.ChannelName
 
-	channel := b.getRoomID(msg.Channel)
-	b.Log.Debugf("Channel %s maps to channel id %s", msg.Channel, channel)
+		if msg.ChannelType == "private" {
+			b.HandleDirectMessages(msg.Username, msg.ChannelId)
+			msg.Channel = msg.Username
+		} else {
+			b.HandleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.ChannelUsersMember)
+
+		}
+	case "api":
+		go b.ControllAction(msg)
+		return "", nil
+
+	}
+
 	// Make a action /me of the message
 
 	//TODO handle virtualUser creation here
 	if msg.Event == "new_users" {
 		b.remoteUsername = msg.Username
 		b.RemoteProtocol = msg.Protocol
-		b.HandleChannelInfoEvent(msg.Channel, msg.ChannelUsersMember)
+		b.HandleChannelInfoEvent(msg.Channel, msg.ChannelId, msg.ChannelUsersMember)
 		// TODO create virtual users and join channels
 		return "", nil
 	}
@@ -936,11 +957,11 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 		b.HandleDirectMessages(msg.Username, msg.ChannelId)
 
-		channel = b.getRoomID(msg.Username)
-
+		msg.Channel = msg.Username
 		// TODO create virtual users and join channels
 	}
-
+	channel := b.getRoomID(msg.Channel)
+	b.Log.Debugf("Channel %s maps to channel id %s", msg.Channel, channel)
 	if msg.Event == config.EventJoinLeave {
 		if msg.ActionCommand == "join" {
 			b.HandleJoinUsers(msg.Channel, msg.ChannelUsersMember)
@@ -1293,13 +1314,18 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 			UserID:   ev.Sender,
 			ID:       ev.ID,
 			Protocol: "appservice",
+
 			//	Avatar:   b.getAvatarURL(ev.Sender),
 		}
 		channelInfo := b.roomsInfo[channel]
-		if channelInfo.IsDirect && channelInfo.RemoteId == "" {
+		if channelInfo.IsDirect {
 			rmsg.Event = "direct_msg"
 		}
+		rmsg.TargetPlatform = b.RemoteProtocol
 		rmsg.ChannelId = channelInfo.RemoteId
+		if b.RemoteProtocol == "telegram" {
+			rmsg.Channel = rmsg.ChannelId
+		}
 		// Remove homeserver suffix if configured
 		if b.GetBool("NoHomeServerSuffix") {
 			re := regexp.MustCompile("(.*?):.*")

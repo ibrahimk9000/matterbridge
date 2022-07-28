@@ -19,10 +19,12 @@ func (b *Bdiscord) SendChannelsAndMembers() {
 		b.Remote <- config.Message{
 			Username: b.nick, Text: "new_users",
 			Channel: v.Name, Account: b.Account,
-			ChannelUsersMember: slUser,
-			Event:              "new_users",
-			ChannelId:          v.ID,
-			Protocol:           "discord",
+			Event:    "new_users",
+			Protocol: "discord",
+			ExtraNetworkInfo: config.ExtraNetworkInfo{
+				ChannelUsersMember: slUser,
+				ChannelId:          v.ID,
+			},
 		}
 	}
 }

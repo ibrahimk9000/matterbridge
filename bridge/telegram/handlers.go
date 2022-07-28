@@ -30,6 +30,9 @@ func (b *Btelegram) handleUpdate(rmsg *config.Message, message, posted, edited *
 		} else {
 			message = posted
 			rmsg.Text = message.Text
+			rmsg.ChannelId = strconv.FormatInt(message.Chat.ID, 10)
+			rmsg.ChannelName = message.Chat.Title
+			rmsg.ChannelType = message.Chat.Type
 		}
 	}
 

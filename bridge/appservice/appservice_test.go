@@ -41,20 +41,24 @@ func TestAppServMatrix_Connect(t *testing.T) {
 	channelMember := []string{"kof", "meta", "woi"}
 
 	msg := config.Message{
-		Text:               "hi good morning",
-		Channel:            "#prog",
-		Username:           "exterUser",
-		UserID:             "123456",
-		Avatar:             "",
-		Account:            "exterUserAccount",
-		Event:              "new_users",
-		Protocol:           "",
-		Gateway:            "",
-		ParentID:           "",
-		Timestamp:          time.Time{},
-		ID:                 "147852",
-		Extra:              map[string][]interface{}{},
-		ChannelUsersMember: channelMember,
+		Text:             "hi good morning",
+		Channel:          "#prog",
+		Username:         "exterUser",
+		UserID:           "123456",
+		Avatar:           "",
+		Account:          "exterUserAccount",
+		Event:            "new_users",
+		Protocol:         "",
+		Gateway:          "",
+		ParentID:         "",
+		Timestamp:        time.Time{},
+		ID:               "147852",
+		Extra:            map[string][]interface{}{},
+		ExtraNetworkInfo: config.ExtraNetworkInfo{
+			ChannelUsersMember: channelMember,
+			ActionCommand:      "",
+			ChannelId:          "",
+		},
 	}
 	b.LoadState()
 

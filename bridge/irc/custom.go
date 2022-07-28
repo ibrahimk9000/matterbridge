@@ -50,7 +50,7 @@ func (b *Birc) HandleEndNames(client *girc.Client, event girc.Event) {
 	b.Remote <- config.Message{
 		Username: b.Nick, Text: b.formatnicks(b.names[channel]),
 		Channel: channel, Account: b.Account,
-		ChannelUsersMember: members,
+		ExtraNetworkInfo: config.ExtraNetworkInfo{ChannelUsersMember: []string{event.Source.Name}},
 		Event:              "new_users",
 	}
 	delete(b.names, channel)
@@ -67,7 +67,7 @@ func (b *Birc) handleDirectMsg(client *girc.Client, event girc.Event) {
 		Channel:            strings.ToLower(event.Params[0]),
 		Account:            b.Account,
 		UserID:             event.Source.Ident + "@" + event.Source.Host,
-		ChannelUsersMember: []string{event.Source.Name},
+		ExtraNetworkInfo: config.ExtraNetworkInfo{ChannelUsersMember: []string{event.Source.Name}},
 		//OriginChannel:      strings.ToLower(event.Params[0]),
 	}
 

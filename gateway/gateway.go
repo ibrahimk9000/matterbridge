@@ -211,7 +211,7 @@ func (gw *Gateway) mapChannels() error {
 
 func (gw *Gateway) getDestChannel(msg *config.Message, dest bridge.Bridge) []config.ChannelInfo {
 	var channels []config.ChannelInfo
-	if msg.Protocol == "appservice" {
+	if msg.Protocol == "appservice" && msg.TargetPlatform == dest.Protocol {
 		for _, channel := range gw.Channels {
 			if channel.Account != dest.Account {
 				continue

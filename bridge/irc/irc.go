@@ -235,17 +235,16 @@ func (b *Birc) doSend() {
 			continue
 		}
 		if msg.Event == "direct_msg_create" {
-			rmsg:= config.Message{
-				Text:               "direct_msg_create",
-				Channel:            msg.Channel,
-				Username:           username,
-				Account:            b.Account,
-				Event:              "direct_msg_create",
-				Protocol:           "irc",
-				Gateway:            msg.Gateway,
-				ChannelId:          msg.Channel,
+			rmsg := config.Message{
+				Text:     "direct_msg_create",
+				Channel:  msg.Channel,
+				Username: username,
+				Account:  b.Account,
+				Event:    "direct_msg_create",
+				Protocol: "irc",
+				Gateway:  msg.Gateway,
 			}
-			 
+			rmsg.ChannelId = msg.Channel
 			rmsg.Account = b.Account
 			rmsg.ChannelId = rmsg.Channel
 			rmsg.Text = rmsg.ChannelId
